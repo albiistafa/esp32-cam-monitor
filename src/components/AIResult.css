@@ -1,0 +1,43 @@
+/* AIResults.css */
+.ai-results {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 5px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.ai-results.empty {
+  text-align: center;
+  color: #6c757d;
+  padding: 20px;
+}
+
+.ai-results h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 18px;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 8px;
+}
+
+.result-item {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.success {
+  color: #28a745;
+  font-weight: bold;
+}
+
+.warning {
+  color: #ffc107;
+  font-weight: bold;
+}
+
+.error {
+  color: #dc3545;
+  font-weight: bold;
+}
