@@ -25,6 +25,15 @@
   margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+.result-description {
+  margin-top: 5px;
+  font-size: 14px;
+  color: #666;
+  text-align: right;
+  font-style: italic;
 }
 
 .success {

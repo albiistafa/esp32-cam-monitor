@@ -66,6 +66,28 @@ const apiService = {
       console.error('Error sending image to AI server:', error);
       throw error;
     }
+  },
+
+  // Fetch camera data from API
+  fetchCameraData: async () => {
+    try {
+      console.log('Mengambil data dari API...'); // Log sebelum request
+      const response = await axios.get('/api/prod/camera-data', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Response dari API:', response.data); // Log response
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching camera data:', error);
+      if (error.response) {
+        console.error('Response error:', error.response.data);
+        console.error('Status:', error.response.status);
+      }
+      throw error;
+    }
   }
 };
 

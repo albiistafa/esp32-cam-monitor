@@ -9,6 +9,14 @@ const CameraStream = ({ onFrameCapture, espIpAddress }) => {
   const [streamSize, setStreamSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.src = '';
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (espIpAddress) {
       const url = `http://${espIpAddress}/mjpeg/1`;
       setStreamUrl(url);
