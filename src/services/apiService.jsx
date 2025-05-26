@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+const API_BASE_URL = 'https://9u6797y9k7.execute-api.us-east-1.amazonaws.com/prod';
+
 const apiService = {
   // Capture image from ESP32-CAM
   captureImage: async (espIpAddress) => {
@@ -125,6 +127,35 @@ const apiService = {
         console.error('Status:', error.response.status);
       }
       throw error;
+    }
+  },
+
+  // Fetch complete history data (untuk halaman history)
+  fetchAllDataHistory: async () => {
+    try {
+      const response = await axios.get('/api/prod/camera-data/alldata', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('Raw API Response:', response); // Debug raw response
+      
+      // Pastikan kita mengambil data yang benar dari response
+      const responseData = response.data?.data || [];
+      console.log('Processed API Response:', responseData); // Debug processed data
+      
+      return {
+        success: true,
+        data: Array.isArray(responseData) ? responseData : []
+      };
+    } catch (error) {
+      console.error('Error fetching complete history data:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
     }
   }
 };
