@@ -1,197 +1,173 @@
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-import CameraStream from './components/CameraStream';
-import CaptureButton from './components/CaptureButton';
 import AIResults from './components/AIResults';
 import apiService from './services/apiService';
 
 function App() {
-  const [espIpAddress, setEspIpAddress] = useState('');
-  const [inputIpAddress, setInputIpAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState(null);
-  const [boundingBoxes, setBoundingBoxes] = useState([]);
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [mode, setMode] = useState('stream');
-  const [cameraData, setCameraData] = useState(null);
+  const [cameraData, setCameraData] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Polling data dari API setiap 5 detik
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await apiService.fetchCameraData();
-        console.log('Data dari API:', data); // Log data yang diterima
-        if (data.success) {
-          setCameraData(data.data);
-          console.log('Camera data diupdate:', data.data); // Log data yang diupdate ke state
-        }
-      } catch (error) {
-        console.error('Error fetching camera data:', error);
-      }
-    };
-
-    // Fetch data pertama kali
-    fetchData();
-
-    // Set interval untuk polling
-    const intervalId = setInterval(fetchData, 5000);
-
-    // Cleanup interval saat komponen unmount
-    return () => clearInterval(intervalId);
-  }, []);
-
-  const handleConnect = () => {
-    if (inputIpAddress) {
-      setEspIpAddress(inputIpAddress);
-    }
-  };
-
-  const handleCapture = async () => {
-    if (!espIpAddress) return;
-    
-    setIsLoading(true);
+  // Fungsi untuk mengambil data history (manual refresh)
+  const fetchHistoryData = async () => {
     try {
-      // Tangkap gambar dari ESP32-CAM
-      const imageBlob = await apiService.captureImage(espIpAddress);
-      setCapturedImage(URL.createObjectURL(imageBlob));
-
-      // Kirim ke server AI untuk pengenalan wajah
-      const response = await apiService.recognizeFaceBase64(imageBlob);
-      
-      // Parse respons untuk face recognition
-      let faceRecogResult = -1;
-      if (response.num_faces > 0 && response.faces.length > 0) {
-        if (response.faces[0].name === "Unknown") {
-          faceRecogResult = 2;
-        } else if (response.faces[0].similarity < 0.4) {
-          faceRecogResult = 1;
+      setIsLoading(true);
+      setError(null);
+      const data = await apiService.fetchAllCameraData();
+      if (data.success) {
+        setCameraData(data.data);
+        if (!selectedImage && data.data.length > 0) {
+          setSelectedImage(data.data[0]);
         }
-      }
-      
-      // Hasil dari AI (contoh format, sesuaikan dengan respons yang sebenarnya)
-      const aiResults = {
-        facerecog: faceRecogResult,
-        seragam: response.seragam || -1 // Asumsikan server AI juga mengembalikan status seragam
-      };
-
-      setResults(aiResults);
-      
-      // Update bounding boxes jika ada
-      if (response.bounding_boxes) {
-        setBoundingBoxes(response.bounding_boxes);
       }
     } catch (error) {
-      console.error('Error during capture and recognition:', error);
-      alert('Error: ' + error.message);
+      console.error('Error fetching history data:', error);
+      setError('Gagal mengambil data history. Silakan coba lagi nanti.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Fungsi untuk mengambil data terbaru (polling)
+  const fetchLatestData = async () => {
+    try {
+      const data = await apiService.fetchLatestCameraData();
+      if (data.success && data.data) {
+        // Update selected image jika ini adalah data terbaru
+        setSelectedImage(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching latest data:', error);
+    }
+  };
+
+  // Polling data terbaru setiap 5 detik
+  useEffect(() => {
+    // Fetch data history pertama kali
+    fetchHistoryData();
+
+    // Set interval untuk polling data terbaru
+    const intervalId = setInterval(fetchLatestData, 5000);
+
+    // Cleanup interval saat komponen unmount
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>ESP32-CAM AI Monitor</h1>
-      </header>
-      
-      <div className="container mt-4">
-        <div className="row mb-4">
-          <div className="col-md-8 offset-md-2">
-            <div className="input-group">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Enter ESP32-CAM IP Address (e.g. 192.168.1.100)"
-                value={inputIpAddress}
-                onChange={(e) => setInputIpAddress(e.target.value)}
-              />
-              <div className="input-group-append">
-                <button 
-                  className="btn btn-primary"
-                  onClick={handleConnect}
-                >
-                  Connect
-                </button>
-              </div>
-            </div>
-          </div>
+    <div className="App bg-white min-vh-100">
+      <header className="App-header border-bottom bg-white py-3 mb-4">
+        <div className="container px-3">
+          <h1 className="h3 fw-semibold mb-1 text-primary">ESP32-CAM AI Monitor</h1>
+          <div className="text-muted small">Sistem Pemantauan Kamera dengan AI</div>
         </div>
-        
-        <div className="row">
-          <div className="col-md-8">
-            <div style={{ marginBottom: 16 }}>
-              {mode === 'stream' ? (
-                <button onClick={() => setMode('capture')} className="btn btn-warning mb-3">
-                  Nonaktifkan Stream (untuk Capture)
-                </button>
-              ) : (
-                <button onClick={() => setMode('stream')} className="btn btn-success mb-3">
-                  Aktifkan Stream
-                </button>
-              )}
-            </div>
-            {mode === 'stream' && (
-              <CameraStream 
-                key={mode} 
-                espIpAddress={espIpAddress}
-                boundingBoxes={boundingBoxes}
-              />
-            )}
+      </header>
+      <div className="container px-3 mb-5">
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            {error}
           </div>
-          
-          <div className="col-md-4">
-            <div className="card">
-              <div className="card-header">
-                <h5>Captured Image</h5>
-              </div>
-              <div className="card-body text-center">
-                {cameraData?.image_url ? (
+        )}
+        <div className="row g-4 flex-lg-nowrap">
+          <div className="col-12 col-lg-7">
+            <div className="border rounded-4 bg-white p-3 mb-3">
+              <div className="mb-3 text-center">
+                {selectedImage?.image_url ? (
                   <img 
-                    src={cameraData.image_url} 
-                    alt="Captured from Camera" 
-                    className="img-fluid captured-image"
-                    style={{ maxHeight: '300px', objectFit: 'contain' }}
-                  />
-                ) : capturedImage ? (
-                  <img 
-                    src={capturedImage} 
-                    alt="Captured" 
-                    className="img-fluid captured-image"
+                    src={selectedImage.image_url} 
+                    alt="Current Camera View" 
+                    className="img-fluid rounded-3 border"
+                    style={{ maxHeight: '400px', objectFit: 'contain', width: '100%', background: '#f8f9fa' }}
                   />
                 ) : (
-                  <p className="text-muted">No image captured yet</p>
+                  <div className="d-flex flex-column align-items-center justify-content-center w-100" style={{height: '150px'}}>
+                    <i className="bi bi-camera text-secondary" style={{fontSize: '2.5rem'}}></i>
+                    <span className="text-muted mt-2 small">Belum ada gambar dari kamera</span>
+                  </div>
                 )}
               </div>
+              {selectedImage && <AIResults cameraData={selectedImage} />}
+              {selectedImage && (
+                <div className="mx-auto mt-3" style={{maxWidth: '100%'}}> {/* Ubah maxWidth menjadi 100% */}
+                  <div className="row g-2">  {/* Hapus justify-content-between karena akan menggunakan col yang sama */}
+                    <div className="col-12 col-md-4">
+                      <div className="border rounded-3 bg-light p-3 h-100 d-flex flex-column">
+                        <div className="fw-semibold mb-2 text-secondary">Wajah</div>
+                        <div className="text-secondary small flex-grow-1">
+                          <div>{selectedImage.face_detected ?? 'Tidak terdeteksi'}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-12 col-md-4">
+                      <div className="border rounded-3 bg-light p-3 h-100 d-flex flex-column">
+                        <div className="fw-semibold mb-2 text-secondary">Seragam</div>
+                        <div className="text-secondary small flex-grow-1">
+                          <div>{selectedImage.uniform_detected ?? 'Tidak terdeteksi'}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-12 col-md-4">
+                      <div className="border rounded-3 bg-light p-3 h-100 d-flex flex-column">
+                        <div className="fw-semibold mb-2 text-secondary">Waktu</div>
+                        <div className="text-secondary small flex-grow-1">
+                          <div>{new Date(selectedImage.timestamp).toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            
-            <div className="mt-4">
-              <AIResults cameraData={cameraData} />
-            </div>
-
-            {/* Tampilkan data dari API */}
-            <div className="card mt-4">
-              <div className="card-header">
-                <h5>Camera Data</h5>
+          </div>
+          <div className="col-12 col-lg-5">
+            <div className="border rounded-4 bg-white p-3 mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="fw-semibold text-secondary">History</div>
+                <button 
+                  className="btn btn-outline-primary btn-sm d-flex align-items-center gap-1"
+                  onClick={fetchHistoryData}
+                  disabled={isLoading}
+                  style={{minWidth: 90}}
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Memuat...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-arrow-clockwise me-2"></i>
+                      Refresh
+                    </>
+                  )}
+                </button>
               </div>
-              <div className="card-body">
-                {cameraData ? (
-                  <>
-                    <div className="result-item">
-                      <strong>Camera ID:</strong> {cameraData.camera_id}
+              <div style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+                {cameraData.length > 0 ? (
+                  cameraData.map((data, index) => (
+                    <div 
+                      key={index} 
+                      className={`mb-2 p-2 rounded-3 border d-flex align-items-center ${selectedImage === data ? 'bg-primary bg-opacity-10 border-primary' : 'bg-white'} transition`} 
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setSelectedImage(data)}
+                    >
+                      {/* <img 
+                        src={data.image_url} 
+                        alt={`History ${index}`}
+                        className="rounded-2 border me-2"
+                        style={{ width: '48px', height: '36px', objectFit: 'cover', background: '#f8f9fa' }}
+                      /> */}
+                      <div className="flex-grow-1">
+                        <div className="small text-secondary"><strong>Wajah:</strong> {data.face_detected || 'Tidak terdeteksi'}</div>
+                        
+                        <div className="small text-secondary"><strong>Seragam:</strong> {data.uniform_detected || 'Tidak terdeteksi'}</div>
+                        <div className="fw-semibold small mb-1">{new Date(data.timestamp).toLocaleString()}</div>
+                      </div>
                     </div>
-                    <div className="result-item">
-                      <strong>Uniform Detected:</strong> {cameraData.uniform_detected}
-                    </div>
-                    <div className="result-item">
-                      <strong>Face Detected:</strong> {cameraData.face_detected}
-                    </div>
-                    <div className="result-item">
-                      <strong>Timestamp:</strong> {new Date(cameraData.timestamp).toLocaleString()}
-                    </div>
-                  </>
+                  ))
                 ) : (
-                  <p className="text-muted">Menunggu data dari kamera...</p>
+                  <div className="text-muted text-center my-4 small">Belum ada data history</div>
                 )}
               </div>
             </div>

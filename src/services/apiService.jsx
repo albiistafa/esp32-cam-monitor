@@ -71,17 +71,55 @@ const apiService = {
   // Fetch camera data from API
   fetchCameraData: async () => {
     try {
-      console.log('Mengambil data dari API...'); // Log sebelum request
+      const response = await axios.get('/api/prod/camera-data/all', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching camera data:', error);
+      if (error.response) {
+        console.error('Response error:', error.response.data);
+        console.error('Status:', error.response.status);
+      }
+      throw error;
+    }
+  },
+
+  // Fetch latest camera data (untuk polling)
+  fetchLatestCameraData: async () => {
+    try {
       const response = await axios.get('/api/prod/camera-data', {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
       });
-      console.log('Response dari API:', response.data); // Log response
       return response.data;
     } catch (error) {
-      console.error('Error fetching camera data:', error);
+      console.error('Error fetching latest camera data:', error);
+      if (error.response) {
+        console.error('Response error:', error.response.data);
+        console.error('Status:', error.response.status);
+      }
+      throw error;
+    }
+  },
+
+  // Fetch all camera data history (untuk refresh manual)
+  fetchAllCameraData: async () => {
+    try {
+      const response = await axios.get('/api/prod/camera-data/all', {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all camera data:', error);
       if (error.response) {
         console.error('Response error:', error.response.data);
         console.error('Status:', error.response.status);
